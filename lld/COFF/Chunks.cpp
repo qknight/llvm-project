@@ -1071,4 +1071,8 @@ void AbsolutePointerChunk::writeTo(uint8_t *buf) const {
   }
 }
 
+void UInt32LEChunk::writeTo(uint8_t *buf) const {
+  write32le(buf, data);
+}
+
 } // namespace lld::coff

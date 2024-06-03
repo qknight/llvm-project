@@ -1791,6 +1791,10 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   if (auto *arg = args.getLastArg(OPT_heap))
     parseNumbers(arg->getValue(), &config->heapReserve, &config->heapCommit);
 
+  // Handle /fixPathSize
+  if (auto *arg = args.getLastArg(OPT_fixPathSize))
+    parseNumbers(arg->getValue(), &config->fixPathSize);
+
   // Handle /version
   if (auto *arg = args.getLastArg(OPT_version))
     parseVersion(arg->getValue(), &config->majorImageVersion,
@@ -2032,6 +2036,7 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   config->ltoPGOWarnMismatch = args.hasFlag(OPT_lto_pgo_warn_mismatch,
                                             OPT_lto_pgo_warn_mismatch_no, true);
   config->allowBind = args.hasFlag(OPT_allowbind, OPT_allowbind_no, true);
+  config->useFixPath = args.hasFlag(OPT_useFixPath, OPT_useFixPath_no, false);
   config->allowIsolation =
       args.hasFlag(OPT_allowisolation, OPT_allowisolation_no, true);
   config->incremental =

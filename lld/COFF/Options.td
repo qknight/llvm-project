@@ -61,6 +61,7 @@ def dependentloadflag_opt : P<"dependentloadflag",
     "Sets the default load flags used to resolve the statically linked imports of a module">;
 def guard   : P<"guard", "Control flow guard">;
 def heap    : P<"heap", "Size of the heap">;
+def fixPathSize    : P<"fixPathSize", "Length/size of reserved dllName chars for fixPath rewrites (defaults to 300 chars per DLL entry)">;
 def ignore : P<"ignore", "Specify warning codes to ignore">;
 def implib  : P<"implib", "Import library name">;
 def noimplib : F<"noimplib">,
@@ -182,6 +183,8 @@ defm WX : B<"WX", "Treat warnings as errors",
 
 defm allowbind : B<"allowbind", "Enable DLL binding (default)",
                    "Disable DLL binding">;
+defm useFixPath : B<"useFixPath", "Enable fixPath support (PE header extension)",
+                   "Disable fixPath support (default)">;
 defm allowisolation : B<"allowisolation", "Enable DLL isolation (default)",
                         "Disable DLL isolation">;
 defm appcontainer : B<"appcontainer",

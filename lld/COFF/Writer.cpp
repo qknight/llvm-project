@@ -215,6 +215,7 @@ private:
   void appendImportThunks();
   void locateImportTables();
   void createExportTable();
+  void createFixPathSection();
   void mergeSections();
   void sortECChunks();
   void removeUnusedSections();
@@ -284,6 +285,7 @@ private:
   IdataContents idata;
   Chunk *importTableStart = nullptr;
   uint64_t importTableSize = 0;
+  FixPathContents fixPath;
   Chunk *edataStart = nullptr;
   Chunk *edataEnd = nullptr;
   Chunk *iatStart = nullptr;
@@ -315,6 +317,7 @@ private:
   OutputSection *relocSec;
   OutputSection *ctorsSec;
   OutputSection *dtorsSec;
+  OutputSection *fixPathSec;
   // Either .rdata section or .buildid section.
   OutputSection *debugInfoSec;
 
@@ -740,6 +743,9 @@ void Writer::run() {
     // added.
     createMiscChunks();
     createExportTable();
+
+    createFixPathSection();
+
     mergeSections();
     sortECChunks();
     removeUnusedSections();
@@ -996,6 +1002,7 @@ void Writer::createSections() {
   relocSec = createSection(".reloc", data | discardable | r);
   ctorsSec = createSection(".ctors", data | r | w);
   dtorsSec = createSection(".dtors", data | r | w);
+  fixPathSec = createSection(".fixPath", data | r | w);
 
   // Then bin chunks by name and output characteristics.
   for (Chunk *c : ctx.symtab.getChunks()) {
@@ -1417,6 +1424,42 @@ void Writer::createSymbolAndStringTable() {
   fileOff += outputSymtab.size() * sizeof(coff_symbol16);
   fileOff += 4 + strtab.size();
   fileSize = alignTo(fileOff, ctx.config.fileAlign);
+}
+
+// a section indicating support for DLL renaming (i.e. similar to rpath for unix)
+// see https://github.com/nixcloud/fixPath for details
+void Writer::createFixPathSection() {
+    if (!ctx.config.useFixPath) {
+      return;
+    }
+    FixPathContents fixPath;
+
+    // import data
+    for (StringRef dllName : idata.dllNamesStrings) {
+      fixPath.addIData(dllName);
+    }
+    // delay import data
+    for (StringRef dllName : delayIdata.dllNamesStrings) {
+      fixPath.addDelayIData(dllName);
+    }
+
+    // write .fixPath section
+    fixPathSec->addChunk(make<UInt32LEChunk>(fixPath.getVersion()));
+    fixPathSec->addChunk(make<UInt32LEChunk>(fixPath.getDllnameMaxSize()));
+
+    // add size
+    fixPathSec->addChunk(make<UInt32LEChunk>(fixPath.iData.size()));
+    fixPathSec->addChunk(make<UInt32LEChunk>(fixPath.delayIData.size()));
+
+    for (Chunk *d : fixPath.iData) {
+      fixPathSec->addChunk(d);
+    }
+    for (Chunk *d : fixPath.delayIData) {
+      fixPathSec->addChunk(d);
+    }
+    fixPathSec->addChunk(make<NullChunk>(4)); // 4bytes
+    fixPathSec->addChunk(make<StringChunk>("https://github.com/nixcloud/fixPath"));
+    fixPathSec->addChunk(make<NullChunk>(4)); // 4bytes
 }
 
 void Writer::mergeSections() {

@@ -797,6 +797,34 @@ public:
   SectionChunk chunk;
 };
 
+// A chunk representing null terminator in the import table.
+// Contents of this chunk is always null bytes.
+class NullChunk : public NonSectionChunk {
+public:
+  explicit NullChunk(size_t n) : size(n) { hasData = false; }
+  size_t getSize() const override { return size; }
+
+  void writeTo(uint8_t *buf) const override {
+    memset(buf, 0, size);
+  }
+
+private:
+  size_t size;
+};
+
+class UInt32LEChunk : public NonSectionChunk {
+public:
+  UInt32LEChunk(uint32_t data) : data(data) {};
+  void writeTo(uint8_t *buf) const override;
+
+  uint64_t getSize() const {
+    return 4;
+  }
+
+private:
+  uint32_t data;
+};
+
 } // namespace lld::coff
 
 namespace llvm {

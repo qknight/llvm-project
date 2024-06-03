@@ -127,21 +127,6 @@ public:
   Chunk *addressTab;
 };
 
-// A chunk representing null terminator in the import table.
-// Contents of this chunk is always null bytes.
-class NullChunk : public NonSectionChunk {
-public:
-  explicit NullChunk(size_t n) : size(n) { hasData = false; }
-  size_t getSize() const override { return size; }
-
-  void writeTo(uint8_t *buf) const override {
-    memset(buf, 0, size);
-  }
-
-private:
-  size_t size;
-};
-
 static std::vector<std::vector<DefinedImportData *>>
 binImports(COFFLinkerContext &ctx,
            const std::vector<DefinedImportData *> &imports) {
@@ -702,7 +687,8 @@ void IdataContents::create(COFFLinkerContext &ctx) {
       syms[i]->setLocation(addresses[base + i]);
 
     // Create the import table header.
-    dllNames.push_back(make<StringChunk>(syms[0]->getDLLName()));
+    dllNames.push_back(make<StringChunkReservedSize>(ctx, syms[0]->getDLLName()));
+    dllNamesStrings.push_back(syms[0]->getDLLName());
     auto *dir = make<ImportDirectoryChunk>(dllNames.back());
     dir->lookupTab = lookups[base];
     dir->addressTab = addresses[base];
@@ -741,7 +727,8 @@ void DelayLoadContents::create(Defined *h) {
   // Create .didat contents for each DLL.
   for (std::vector<DefinedImportData *> &syms : v) {
     // Create the delay import table header.
-    dllNames.push_back(make<StringChunk>(syms[0]->getDLLName()));
+    dllNames.push_back(make<StringChunkReservedSize>(ctx, syms[0]->getDLLName()));
+    dllNamesStrings.push_back(syms[0]->getDLLName());
     auto *dir = make<DelayDirectoryChunk>(dllNames.back());
 
     size_t base = addresses.size();
@@ -883,6 +870,20 @@ EdataContents::EdataContents(COFFLinkerContext &ctx) : ctx(ctx) {
   chunks.push_back(ordinalTab);
   chunks.insert(chunks.end(), names.begin(), names.end());
   chunks.insert(chunks.end(), forwards.begin(), forwards.end());
+}
+
+size_t StringChunkReservedSize::getSize() const {
+  uint32_t fixPathSize = ctx.config.fixPathSize;
+  if (ctx.config.useFixPath && str.size() + 1 <= fixPathSize) {
+    return fixPathSize;
+  } else {
+    return str.size() + 1;
+  }
+}
+
+void StringChunkReservedSize::writeTo(uint8_t *buf) const {
+  memcpy(buf, str.data(), str.size());
+  buf[str.size()] = '\0';
 }
 
 } // namespace lld::coff

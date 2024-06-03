@@ -31,6 +31,33 @@ public:
   std::vector<Chunk *> addresses;
   std::vector<Chunk *> hints;
   std::vector<Chunk *> dllNames;
+  std::vector<StringRef> dllNamesStrings;
+};
+
+// Windows-specific.
+// .fixPath contents as version and dllname_max_size
+class FixPathContents {
+public:
+  void addIData(StringRef dll) {
+    iData.push_back(make<StringChunk>(dll));
+  }
+  void addDelayIData(StringRef dll) {
+    delayIData.push_back(make<StringChunk>(dll));
+  }
+  uint32_t getVersion() {
+    return version;
+  }
+  uint32_t getDllnameMaxSize() {
+      return dllname_max_size;
+  }
+  // FIXME make private
+  std::vector<Chunk *> iData;
+  std::vector<Chunk *> delayIData;
+  // dllname_max_size - a guaranteed size for a dll filename,
+  // i.e. "KERNEL32.dll" or "C:\nix\store\long-dir-name\foo.dll"
+private:
+  uint32_t version = 2;
+  uint32_t dllname_max_size = 301;
 };
 
 // Windows-specific.
@@ -49,6 +76,7 @@ public:
 
   uint64_t getDirRVA() { return dirs[0]->getRVA(); }
   uint64_t getDirSize();
+  std::vector<StringRef> dllNamesStrings;
 
 private:
   Chunk *newThunkChunk(DefinedImportData *s, Chunk *tailMerge);
@@ -83,6 +111,19 @@ public:
     return chunks.back()->getRVA() + chunks.back()->getSize() - getRVA();
   }
 
+  COFFLinkerContext &ctx;
+};
+
+// A chunk for linker-created strings with a preallocated/fixed output size
+// so that DLL names in the PE header can be patched similar to rpath on Linux.
+class StringChunkReservedSize : public NonSectionChunk {
+public:
+  StringChunkReservedSize(COFFLinkerContext &ctx, StringRef s) : str(s), ctx(ctx) {}
+  void writeTo(uint8_t *buf) const override;
+  size_t getSize() const override;
+
+private:
+  StringRef str;
   COFFLinkerContext &ctx;
 };
 

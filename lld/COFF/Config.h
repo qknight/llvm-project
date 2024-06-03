@@ -275,6 +275,11 @@ struct Configuration {
   // Used for /vfsoverlay:
   std::unique_ptr<llvm::vfs::FileSystem> vfs;
 
+  // DLL name preallocation for fixPath extension in c:\nix\store
+  // https://github.com/NixOS/nix/issues/5086
+  bool useFixPath = true;
+  uint64_t fixPathSize = 301;
+
   uint64_t align = 4096;
   uint64_t imageBase = -1;
   uint64_t fileAlign = 512;
